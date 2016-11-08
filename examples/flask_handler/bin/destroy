@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+import shutil
+import subprocess
+import tempfile
+import zipfile
+
+import boto3
+import botocore
+
+DEFAULT_STACK = "apigwsgi-flask-example"
+DEFAULT_REGION = "us-east-1"
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--stack", default=DEFAULT_STACK)
+    parser.add_argument("--region", default=DEFAULT_REGION)
+    args = parser.parse_args()
+
+    stack = args.stack
+    region = args.region
+
+    print "Deleting CloudFormation stack"
+    cloudformation_delete(stack, region)
+
+def cloudformation_delete(stack, region):
+    """
+    Delete a CloudFormation stack and wait for completion.
+    """
+
+    client = boto3.client("cloudformation", region_name=region)
+    client.delete_stack(StackName=stack)
+    client.get_waiter("stack_delete_complete").wait(StackName=stack)
+
+if __name__ == "__main__":
+    main()

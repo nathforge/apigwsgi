@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+
+import argparse
+import os.path
+import shutil
+import subprocess
+import tempfile
+import zipfile
+
+import boto3
+import botocore
+
+DEFAULT_STACK = "apigwsgi-flask-example"
+DEFAULT_REGION = "us-east-1"
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--stack", default=DEFAULT_STACK)
+    parser.add_argument("--region", default=DEFAULT_REGION)
+    args = parser.parse_args()
+
+    stack = args.stack
+    region = args.region
+
+    print "Creating/updating CloudFormation stack"
+    with open(os.path.join(os.path.dirname(__file__), "../cloudformation.yml")) as fp:
+        template = fp.read()
+        cloudformation_create_or_update(stack, region, template)
+
+    print "Fetching CloudFormation outputs"
+    outputs = cloudformation_outputs(stack, region)
+
+    print "Uploading Lambda function"
+    lambda_upload(outputs["LambdaFunctionName"], os.path.join(os.path.dirname(__file__), "../src"), region)
+
+    api_url = "https://{restapi_id}.execute-api.{region}.amazonaws.com/{stage_name}/".format(
+        restapi_id=outputs["APIGatewayRestId"],
+        region=region,
+        stage_name="live"
+    )
+    print "=" * 79
+    print
+    print "Uploaded Flask example to {api_url}".format(api_url=api_url)
+    print
+    print "Remove the installation with {destroy_filename}".format(destroy_filename=os.path.join(os.path.dirname(__file__), "destroy"))
+
+def cloudformation_create_or_update(stack, region, template):
+    """
+    Create/update a CloudFormation stack and wait for completion.
+    """
+
+    client = boto3.client("cloudformation", region_name=region)
+    try:
+        client.update_stack(StackName=stack, Capabilities=["CAPABILITY_IAM"], TemplateBody=template)
+    except botocore.exceptions.ClientError as exc:
+        if "No updates are to be performed" in exc.message:
+            pass
+        elif "does not exist" in exc.message:
+            client.create_stack(StackName=stack, Capabilities=["CAPABILITY_IAM"], TemplateBody=template)
+            client.get_waiter("stack_create_complete").wait(StackName=stack)
+        else:
+            raise
+    else:
+        client.get_waiter("stack_update_complete").wait(StackName=stack)
+
+def cloudformation_outputs(stack, region):
+    """
+    Return CloudFormation outputs as a dict.
+    """
+
+    client = boto3.client("cloudformation", region_name=region)
+    result = client.describe_stacks(StackName=stack)
+    return {
+        output["OutputKey"]: output["OutputValue"]
+        for output in result["Stacks"][0].get("Outputs", [])
+    }
+
+def lambda_upload(name, src, region):
+    try:
+        dst = tempfile.mkdtemp()
+
+        # Copy src to dst
+        for basename in os.listdir(src):
+            src_filename = os.path.join(src, basename)
+            dst_filename = os.path.join(dst, basename)
+            if os.path.isdir(src_filename):
+                shutil.copytree(src_filename, dst_filename)
+            else:
+                shutil.copy2(src_filename, dst_filename)
+
+        # Install requirements
+        requirements = ["flask"]
+        command = ["pip", "install", "--target", dst, "-r", os.path.join(dst, "requirements.txt")]
+        subprocess.check_call(command)
+
+        # Create a zip file
+        with tempfile.NamedTemporaryFile() as fp:
+            with zipfile.ZipFile(fp, "w", compression=zipfile.ZIP_DEFLATED) as zfp:
+                for path, _, basenames in os.walk(dst):
+                    path = os.path.relpath(path, dst)
+                    for basename in basenames:
+                        zfp.write(os.path.join(dst, path, basename), os.path.join(path, basename))
+
+            # Upload the function
+            client = boto3.client("lambda", region_name=region)
+            fp.seek(0)
+            client.update_function_code(FunctionName=name, ZipFile=fp.read(), Publish=True)
+    finally:
+        shutil.rmtree(dst)
+
+if __name__ == "__main__":
+    main()
