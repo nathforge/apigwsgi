@@ -6,22 +6,37 @@
     </head>
     <body>
         <div class="container" style="margin-top: 2em; margin-bottom: 2em">
-            <p>
-                <a href="https://github.com/nathforge/apigwsgi">APIG WSGI:</a> Flask example
-            </p>
+            <div class="row">
+                <div class="col-md-8">
+                    <p>
+                        <a href="https://github.com/nathforge/apigwsgi">APIG WSGI:</a> Flask example
+                    </p>
 
-            <h2>Request</h2>
-            {{request.method}} {{request.full_path}}<br>
-            {% for key, value in request.headers.iteritems() %}
-            {{key}}: {{value}}<br>
-            {% endfor %}
+                    <h2>Request</h2>
+                    {{request.method}} {{request.full_path}}<br>
+                    {% for key, value in request.headers.iteritems() %}
+                    {{key}}: {{value}}<br>
+                    {% endfor %}
 
-            <h3>Data</h3>
-            {% if request.get_data() %}
-                <pre>{{request.get_data()}}</pre>
-            {% else %}
-                <em>none</em>
-            {% endif %}
+                    <h3>Data</h3>
+                    {% if request.get_data() %}
+                        <pre>{{request.get_data()}}</pre>
+                    {% else %}
+                        <em>none</em>
+                    {% endif %}
+
+                    <hr>
+
+                    <h2>Lambda event</h2>
+                    <pre>{{event|tojson_pretty}}</pre>
+                </div>
+                <div class="col-md-4">
+                    <h2>Test post</h2>
+                    <form method="post">
+                        Data: <input name="data"> <input type="submit" value="Send">
+                    </form>
+                </div>
+            </div>
         </div>
     </body>
 </html>

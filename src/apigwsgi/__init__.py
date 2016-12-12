@@ -104,6 +104,10 @@ class Handler(object):
             for key, value in (event["headers"] or {}).iteritems()
         })
 
+        # Construct a Content-Length header. API Gateway doesn't seem to forward
+        # this.
+        environ["HTTP_CONTENT_LENGTH"] = len(event["body"] or "")
+
         # "The HTTP request method, such as "GET" or "POST" . This cannot ever
         #  be an empty string, and so is always required."
         environ["REQUEST_METHOD"] = event["httpMethod"]
@@ -131,8 +135,7 @@ class Handler(object):
 
         # "The contents of any Content-Length fields in the HTTP request. May be
         #  empty or absent."
-        if "HTTP_CONTENT_LENGTH" in environ:
-            environ["CONTENT_LENGTH"] = environ["HTTP_CONTENT_LENGTH"]
+        environ["CONTENT_LENGTH"] = environ["HTTP_CONTENT_LENGTH"]
 
         # "When combined with SCRIPT_NAME and PATH_INFO , these two strings can
         #  be used to complete the URL. Note, however, that HTTP_HOST , if
@@ -168,7 +171,7 @@ class Handler(object):
 
         # "An input stream (file-like object) from which the HTTP request body
         #  bytes can be read."
-        environ["wsgi.input"] = cStringIO.StringIO(event["body"] or "")
+        environ["wsgi.input"] = cStringIO.StringIO(event["body"])
 
         # "An output stream (file-like object) to which error output can be
         #  written, for the purpose of recording program or other errors in a

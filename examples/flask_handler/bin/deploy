@@ -90,7 +90,12 @@ def lambda_upload(name, src, region):
 
         # Install requirements
         requirements = ["flask"]
-        command = ["pip", "install", "--target", dst, "-r", os.path.join(dst, "requirements.txt")]
+        command = [
+            "pip", "install",
+            "--target", dst,
+            os.path.join(os.path.dirname(__file__), "../../.."),
+            "-r", os.path.join(dst, "requirements.txt")
+        ]
         subprocess.check_call(command)
 
         # Create a zip file
