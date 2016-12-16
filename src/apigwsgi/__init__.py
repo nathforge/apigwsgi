@@ -171,7 +171,7 @@ class Handler(object):
 
         # "An input stream (file-like object) from which the HTTP request body
         #  bytes can be read."
-        environ["wsgi.input"] = cStringIO.StringIO(event["body"])
+        environ["wsgi.input"] = cStringIO.StringIO(event["body"] or "")
 
         # "An output stream (file-like object) to which error output can be
         #  written, for the purpose of recording program or other errors in a

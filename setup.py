@@ -7,7 +7,7 @@ from setuptools import setup
 ROOT = os.path.dirname(__file__)
 
 setup(
-    version="0.1.4",
+    version="0.1.5",
     url="https://github.com/nathforge/apigwsgi",
     name="apigwsgi",
     description="WSGI compatibility for AWS API Gateway proxy resources",
